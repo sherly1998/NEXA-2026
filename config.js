@@ -7,3 +7,6 @@ window.NEXA_CONFIG = {
 const pbNexaPhase2 = document.createElement('script');
 pbNexaPhase2.src = 'phase-2.js';
 document.head.appendChild(pbNexaPhase2);
+const pbNexaPhase3 = document.createElement('script');
+pbNexaPhase3.src = 'phase-3.js';
+document.head.appendChild(pbNexaPhase3);
