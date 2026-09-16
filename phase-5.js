@@ -511,7 +511,9 @@
     const lastCompletedIds = completed.length ? getMatchPlayers(completed[0]) : [];
     const fresh = lastCompletedIds.length ? waiting.filter((row) => !lastCompletedIds.includes(row.players.id)) : waiting;
     const pool = (fresh.length >= 4 ? fresh : waiting).slice(0, 12);
-    const maxRecentAllowed = fresh.length >= 4 ? 0 : Math.max(0, 4 - fresh.length);
+    // Utamakan pemain baru. Jika grade mereka tidak bisa membentuk match seimbang,
+    // izinkan maksimal dua pemain dari match terakhir agar rotasi tetap berjalan.
+    const maxRecentAllowed = fresh.length >= 2 ? 2 : Math.max(0, 4 - fresh.length);
     const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
     let best = null;
     let bestScore = -Infinity;
