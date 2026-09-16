@@ -668,6 +668,8 @@
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, refresh)
       .subscribe();
+    // Fallback polling: tetap memperbarui daftar walau Realtime Supabase belum diaktifkan.
+    setInterval(() => { if (state.session) refresh(); }, 5000);
   }
 
   setTimeout(boot, 1200);
