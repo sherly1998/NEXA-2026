@@ -76,7 +76,7 @@
         @media(max-width:520px){.nexa5 .tabs{grid-template-columns:repeat(2,1fr)}.nexa5 .score{grid-template-columns:1fr}}
       </style>
       <div class="nexa5">
-        <div class="small">Versi rotasi 5.2 — minimal 2 pemain berbeda</div>
+        <div class="small">Versi rotasi 5.3 — tanpa batas pergantian 2 pemain</div>
         <div class="card2 top">
           <div class="line">
             <select id="nexaCourts" class="grow">
@@ -490,11 +490,9 @@
     return score;
   }
 
-  function matchScore(teams, oldestIds, recentIds, strictPattern = true) {
+  function matchScore(teams, oldestIds, strictPattern = true) {
     const flat = teams.flat();
     if (strictPattern && !allowedGradePattern(teams)) return -Infinity;
-    // Pergantian pemain dikontrol oleh lastCompletedIds di pickBestMatch.
-    // Match yang sedang aktif tidak boleh mengunci pencarian grade berikutnya.
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
     if (maxDiff > 1) return -Infinity;
 
@@ -518,23 +516,14 @@
       .sort((a, b) => waitAt(a) - waitAt(b));
     if (waiting.length < 4) return null;
 
-    const previous = [...state.matches].filter((m) => m.status === 'done' || m.status === 'playing').sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
-    const recentIds = previous ? getMatchPlayers(previous) : [];
-    const completed = state.matches.filter(m => m.status === 'done').sort((a,b) => new Date(b.ended_at || b.created_at || 0) - new Date(a.ended_at || a.created_at || 0));
-    const lastCompletedIds = completed.length ? getMatchPlayers(completed[0]) : [];
-    const fresh = lastCompletedIds.length ? waiting.filter((row) => !lastCompletedIds.includes(row.players.id)) : waiting;
-    const pool = (fresh.length >= 4 ? fresh : waiting).slice(0, 12);
-    // Utamakan pemain baru. Jika grade mereka tidak bisa membentuk match seimbang,
-    // izinkan maksimal dua pemain dari match terakhir agar rotasi tetap berjalan.
-    const maxRecentAllowed = fresh.length >= 2 ? 2 : Math.max(0, 4 - fresh.length);
+    const pool = waiting;
     const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
     let best = null;
     let bestScore = -Infinity;
 
     const search = (strict) => combinations(pool, 4).forEach((four) => {
-      if (four.filter(row => lastCompletedIds.includes(row.players.id)).length > maxRecentAllowed) return;
       teamOptions(four).forEach((teams) => {
-        const score = matchScore(teams, oldestIds, recentIds, strict);
+        const score = matchScore(teams, oldestIds, strict);
         if (score > bestScore) { best = teams; bestScore = score; }
       });
     });
@@ -554,7 +543,7 @@
 
     const teams = pickBestMatch();
     if (!teams) {
-      alert('Belum ada kombinasi grade yang cocok dengan minimal 2 pemain berbeda dari match terakhir dibuat dan terakhir selesai. Tunggu pemain lain atau gunakan match manual.');
+      alert('Belum tersedia 4 pemain menunggu dengan komposisi grade yang cocok. Tunggu pemain lain atau gunakan match manual.');
       return;
     }
 
