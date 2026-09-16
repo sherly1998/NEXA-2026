@@ -477,8 +477,10 @@
     return score;
   }
 
-  function matchScore(teams, oldestIds) {
+  function matchScore(teams, oldestIds, recentIds) {
     const flat = teams.flat();
+    const overlap = flat.filter((row) => recentIds.includes(row.players.id)).length;
+    if (recentIds.length && overlap > 2) return -99998;
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
     if (maxDiff > 1) return -99999;
 
@@ -503,12 +505,14 @@
 
     const pool = waiting.slice(0, 12);
     const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
+    const previous = [...state.matches].filter((m) => m.status === 'done' || m.status === 'playing').sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
+    const recentIds = previous ? getMatchPlayers(previous) : [];
     let best = null;
     let bestScore = -Infinity;
 
     combinations(pool, 4).forEach((four) => {
       teamOptions(four).forEach((teams) => {
-        const score = matchScore(teams, oldestIds);
+        const score = matchScore(teams, oldestIds, recentIds);
         if (score > bestScore) {
           best = teams;
           bestScore = score;
@@ -516,6 +520,15 @@
       });
     });
 
+    // Bila tidak ada kombinasi dengan minimal 2 pemain baru, gunakan kombinasi terbaik yang tersedia.
+    if (!best && recentIds.length) {
+      let fallback = null; let fallbackScore = -Infinity;
+      combinations(pool, 4).forEach((four) => teamOptions(four).forEach((teams) => {
+        const score = matchScore(teams, oldestIds, []);
+        if (score > fallbackScore) { fallback = teams; fallbackScore = score; }
+      }));
+      return fallback;
+    }
     return best;
   }
 
