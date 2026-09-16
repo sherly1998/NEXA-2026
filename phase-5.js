@@ -509,13 +509,15 @@
     const recentIds = previous ? getMatchPlayers(previous) : [];
     const completed = state.matches.filter(m => m.status === 'done').sort((a,b) => new Date(b.ended_at || b.created_at || 0) - new Date(a.ended_at || a.created_at || 0));
     const lastCompletedIds = completed.length ? getMatchPlayers(completed[0]) : [];
-    const pool = waiting;
+    const fresh = lastCompletedIds.length ? waiting.filter((row) => !lastCompletedIds.includes(row.players.id)) : waiting;
+    const pool = (fresh.length >= 4 ? fresh : waiting).slice(0, 12);
+    const maxRecentAllowed = fresh.length >= 4 ? 0 : Math.max(0, 4 - fresh.length);
     const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
     let best = null;
     let bestScore = -Infinity;
 
     combinations(pool, 4).forEach((four) => {
-      if (four.filter(row => lastCompletedIds.includes(row.players.id)).length > 2) return;
+      if (four.filter(row => lastCompletedIds.includes(row.players.id)).length > maxRecentAllowed) return;
       teamOptions(four).forEach((teams) => {
         const score = matchScore(teams, oldestIds, recentIds);
         if (score > bestScore) {
