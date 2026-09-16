@@ -493,8 +493,8 @@
   function matchScore(teams, oldestIds, recentIds, strictPattern = true) {
     const flat = teams.flat();
     if (strictPattern && !allowedGradePattern(teams)) return -Infinity;
-    const overlap = flat.filter((row) => recentIds.includes(row.players.id)).length;
-    if (recentIds.length && overlap > 2) return -Infinity;
+    // Pergantian pemain dikontrol oleh lastCompletedIds di pickBestMatch.
+    // Match yang sedang aktif tidak boleh mengunci pencarian grade berikutnya.
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
     if (maxDiff > 1) return -Infinity;
 
