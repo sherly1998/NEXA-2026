@@ -14,5 +14,5 @@ const pbNexaPhase4 = document.createElement('script');
 pbNexaPhase4.src = 'phase-4.js';
 document.head.appendChild(pbNexaPhase4);
 const pbNexaPhase5 = document.createElement('script');
-pbNexaPhase5.src = 'phase-5.js';
+pbNexaPhase5.src = 'phase-5.js?v=5.3';
 document.head.appendChild(pbNexaPhase5);
