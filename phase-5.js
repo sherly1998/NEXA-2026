@@ -76,7 +76,7 @@
         @media(max-width:520px){.nexa5 .tabs{grid-template-columns:repeat(2,1fr)}.nexa5 .score{grid-template-columns:1fr}}
       </style>
       <div class="nexa5">
-        <div class="small">Versi rotasi 5.3 — tanpa batas pergantian 2 pemain</div>
+        <div class="small">Versi rotasi 5.4 — pola grade fleksibel saat diperlukan</div>
         <div class="card2 top">
           <div class="line">
             <select id="nexaCourts" class="grow">
@@ -495,7 +495,9 @@
     const flat = teams.flat();
     if (strictPattern && !allowedGradePattern(teams)) return -Infinity;
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
-    if (maxDiff > 1) return -Infinity;
+    // Mode cadangan boleh memakai rentang grade lebih lebar jika pola ideal
+    // tidak tersedia, dengan penalti keseimbangan tetap diterapkan.
+    if (strictPattern && maxDiff > 1) return -Infinity;
 
     const pairPenalty = teams.reduce((sum, team) => {
       return sum + Math.abs(gradeValue(team[0].players.grade) - gradeValue(team[1].players.grade)) * 8;
