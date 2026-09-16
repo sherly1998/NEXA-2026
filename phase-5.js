@@ -397,6 +397,10 @@
 
   async function refresh() {
     if (!state.session) return;
+    // Jangan render ulang saat admin sedang mengetik skor atau mengisi match manual.
+    // Render ulang akan menghapus nilai yang belum sempat disimpan.
+    const focused = document.activeElement;
+    if (focused && focused.matches('input, select, textarea')) return;
     const [{ data: attendances }, { data: matches }, { data: players }] = await Promise.all([
       state.sb.from('attendance').select('*,players(*)').eq('session_id', state.session.id).order('checked_in_at'),
       state.sb.from('matches').select('*').eq('session_id', state.session.id).order('created_at'),
@@ -464,6 +468,14 @@
     ];
   }
 
+  function allowedGradePattern(teams) {
+    const key = teams.flat().map((row) => row.players.grade).sort().join('|');
+    return new Set([
+      'A|A|A|A', 'A|A|B+|B+', 'B+|B+|B+|B+',
+      'B|B|B+|B+', 'B|B|B|B', 'B|B|C|C', 'C|C|C|C'
+    ]).has(key);
+  }
+
   function requestScore(teams) {
     let score = 0;
     teams.forEach((team, teamIndex) => {
@@ -478,8 +490,9 @@
     return score;
   }
 
-  function matchScore(teams, oldestIds, recentIds) {
+  function matchScore(teams, oldestIds, recentIds, strictPattern = true) {
     const flat = teams.flat();
+    if (strictPattern && !allowedGradePattern(teams)) return -Infinity;
     const overlap = flat.filter((row) => recentIds.includes(row.players.id)).length;
     if (recentIds.length && overlap > 2) return -Infinity;
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
@@ -518,16 +531,16 @@
     let best = null;
     let bestScore = -Infinity;
 
-    combinations(pool, 4).forEach((four) => {
+    const search = (strict) => combinations(pool, 4).forEach((four) => {
       if (four.filter(row => lastCompletedIds.includes(row.players.id)).length > maxRecentAllowed) return;
       teamOptions(four).forEach((teams) => {
-        const score = matchScore(teams, oldestIds, recentIds);
-        if (score > bestScore) {
-          best = teams;
-          bestScore = score;
-        }
+        const score = matchScore(teams, oldestIds, recentIds, strict);
+        if (score > bestScore) { best = teams; bestScore = score; }
       });
     });
+    search(true);
+    // Bila pola resmi belum tersedia, buat komposisi terdekat agar pemain tidak menunggu terlalu lama.
+    if (!best) search(false);
 
     return best;
   }
