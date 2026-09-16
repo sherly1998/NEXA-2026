@@ -142,7 +142,8 @@
             <b>${waiting.length} menunggu</b>
             <div class="small">${playing} match sedang main dari batas ${state.session?.courts || 3}</div>
           </div>
-          <button id="generateTop">Buat match berikut</button>
+            <button id="generateTop">Buat match berikut</button>
+            <button class="ghost" id="manualTop">Buat match manual</button>
         </div>
         ${renderPlayingMatches()}
       </div>
@@ -156,7 +157,33 @@
     `;
     $('#generateTop').addEventListener('click', generateMatch);
     $('#generateBottom').addEventListener('click', generateMatch);
+    $('#manualTop').addEventListener('click', renderManualForm);
     attachMatchActions();
+  }
+
+  function renderManualForm() {
+    const active = state.attendances.filter((row) => row.status === 'active').map((row) => row.players).sort((a,b) => a.name.localeCompare(b.name));
+    if (active.length < 4) return alert('Minimal 4 pemain berstatus aktif/menunggu.');
+    const optionHtml = active.map((p) => `<option value="${p.id}">${esc(p.name)} - ${esc(p.grade)}</option>`).join('');
+    const old = document.querySelector('[data-manual-form]');
+    if (old) { old.remove(); return; }
+    const card = document.createElement('div');
+    card.className = 'card2'; card.dataset.manualForm = '1';
+    card.innerHTML = `<b>Buat match manual</b><div class="small" style="margin:6px 0">Pilih urutan: Tim 1 pemain 1, Tim 1 pemain 2, Tim 2 pemain 1, Tim 2 pemain 2.</div><div class="score">${[0,1,2,3].map((i) => `<select data-manual-player="${i}">${optionHtml}</select>`).join('')}</div><button id="saveManual" style="width:100%;margin-top:10px">Simpan match manual</button>`;
+    $('#nexaContent').prepend(card);
+    $('#saveManual').addEventListener('click', saveManualMatch);
+  }
+
+  async function saveManualMatch() {
+    const activePlaying = state.matches.filter((match) => match.status === 'playing').length;
+    if (activePlaying >= state.session.courts) return alert('Semua slot match sedang berjalan.');
+    const ids = [...document.querySelectorAll('[data-manual-player]')].map((s) => s.value);
+    if (new Set(ids).size !== 4) return alert('Pilih 4 pemain yang berbeda.');
+    const teams = [ids.slice(0,2).map((id) => ({ id, name: playerName(id), grade: playerGrade(id) })), ids.slice(2).map((id) => ({ id, name: playerName(id), grade: playerGrade(id) }))];
+    const { error } = await state.sb.from('matches').insert({ session_id: state.session.id, court: state.matches.length + 1, teams, status: 'playing' });
+    if (error) return alert(error.message);
+    await Promise.all(ids.map((id) => { const a = attendanceByPlayer(id); return a ? state.sb.from('attendance').update({ status: 'playing' }).eq('id', a.id) : null; }));
+    await refresh();
   }
 
   function renderAttendanceRow(row) {
