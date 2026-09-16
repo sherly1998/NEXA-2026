@@ -57,7 +57,7 @@
       <style>
         .nexa5{display:grid;gap:12px}
         .nexa5 .top{display:grid;gap:8px}
-        .nexa5 .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+        .nexa5 .tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
         .nexa5 .tabs button{background:#e6f6f8;color:#0f6170}
         .nexa5 .tabs button.active{background:#007c91;color:#fff}
         .nexa5 .grid{display:grid;gap:10px}
@@ -73,7 +73,7 @@
         .nexa5 input,.nexa5 select{width:100%;min-height:42px}
         .nexa5 button{min-height:42px}
         .nexa5 .bottomBar{position:sticky;bottom:0;background:#eef4f8;padding:10px 0}
-        @media(max-width:520px){.nexa5 .tabs{grid-template-columns:1fr 1fr}.nexa5 .score{grid-template-columns:1fr}}
+        @media(max-width:520px){.nexa5 .tabs{grid-template-columns:repeat(2,1fr)}.nexa5 .score{grid-template-columns:1fr}}
       </style>
       <div class="nexa5">
         <div class="card2 top">
@@ -92,6 +92,7 @@
           <button data-tab="pemain">Pemain</button>
           <button data-tab="bola">Bola</button>
           <button data-tab="riwayat">Riwayat</button>
+          <button data-tab="statistik">Statistik</button>
         </div>
 
         <div id="nexaContent"></div>
@@ -127,6 +128,12 @@
     if (state.tab === 'pemain') renderPlayers();
     if (state.tab === 'bola') renderBalls();
     if (state.tab === 'riwayat') renderHistory();
+    if (state.tab === 'statistik') renderStatistics();
+  }
+
+  function renderStatistics() {
+    const rows = [...state.players].sort((a, b) => (b.wins || 0) - (a.wins || 0) || (b.games || 0) - (a.games || 0) || a.name.localeCompare(b.name));
+    $('#nexaContent').innerHTML = `<div class="card2"><b>Statistik pemain</b><p class="small">Akumulasi seluruh sesi yang tersimpan di sistem.</p><div class="grid">${rows.length ? rows.map((p) => `<div class="line" style="border:1px solid #d9e2ec;border-radius:8px;padding:9px"><span class="pill">${esc(p.grade || 'C')}</span><div class="grow"><b>${esc(p.name)}</b><div class="small">${p.games || 0} match · ${p.wins || 0} menang · ${Math.max(0, (p.games || 0) - (p.wins || 0))} kalah</div></div><b>${p.balls || 0} bola</b></div>`).join('') : '<p class="small">Belum ada data pemain.</p>'}</div></div>`;
   }
 
   function renderRotation() {
