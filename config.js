@@ -10,3 +10,6 @@ document.head.appendChild(pbNexaPhase2);
 const pbNexaPhase3 = document.createElement('script');
 pbNexaPhase3.src = 'phase-3.js';
 document.head.appendChild(pbNexaPhase3);
+const pbNexaPhase4 = document.createElement('script');
+pbNexaPhase4.src = 'phase-4.js';
+document.head.appendChild(pbNexaPhase4);
