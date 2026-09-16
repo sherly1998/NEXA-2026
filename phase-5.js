@@ -29,6 +29,17 @@
     return (match.teams || []).flat().map((player) => player.id);
   }
 
+  function hasGeneratedRepeat(teams) {
+    const ids = teams.flat().map((row) => row.players.id).sort().join('|');
+    const pairs = teams.map((team) => team.map((row) => row.players.id).sort().join('|')).sort().join(' / ');
+    return state.matches.some((match) => {
+      if (match.manual) return false;
+      const oldIds = getMatchPlayers(match).sort().join('|');
+      const oldPairs = (match.teams || []).map((team) => team.map((p) => p.id).sort().join('|')).sort().join(' / ');
+      return oldIds === ids || oldPairs === pairs;
+    });
+  }
+
   function attendanceByPlayer(id) {
     return state.attendances.find((row) => row.player_id === id || row.players?.id === id);
   }
@@ -188,7 +199,7 @@
     const ids = [...document.querySelectorAll('[data-manual-player]')].map((s) => s.value);
     if (new Set(ids).size !== 4) return alert('Pilih 4 pemain yang berbeda.');
     const teams = [ids.slice(0,2).map((id) => ({ id, name: playerName(id), grade: playerGrade(id) })), ids.slice(2).map((id) => ({ id, name: playerName(id), grade: playerGrade(id) }))];
-    const { error } = await state.sb.from('matches').insert({ session_id: state.session.id, court: state.matches.length + 1, teams, status: 'playing' });
+    const { error } = await state.sb.from('matches').insert({ session_id: state.session.id, court: state.matches.length + 1, teams, status: 'playing', manual: true });
     if (error) return alert(error.message);
     await Promise.all(ids.map((id) => { const a = attendanceByPlayer(id); return a ? state.sb.from('attendance').update({ status: 'playing' }).eq('id', a.id) : null; }));
     await refresh();
@@ -528,6 +539,7 @@
 
     const search = (strict) => combinations(pool, 4).forEach((four) => {
       teamOptions(four).forEach((teams) => {
+        if (hasGeneratedRepeat(teams)) return;
         const score = matchScore(teams, oldestIds, strict);
         if (score > bestScore) { best = teams; bestScore = score; }
       });
@@ -562,7 +574,8 @@
       session_id: state.session.id,
       court: currentNumber,
       teams: payloadTeams,
-      status: 'playing'
+      status: 'playing',
+      manual: false
     });
     if (error) return alert(error.message);
 

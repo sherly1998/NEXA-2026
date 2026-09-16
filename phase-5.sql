@@ -8,3 +8,4 @@ set wait_started_at = checked_in_at
 where wait_started_at is null;
 
 alter table sessions add column if not exists closed_at timestamptz;
+alter table matches add column if not exists manual boolean not null default false;
