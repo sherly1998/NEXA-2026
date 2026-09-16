@@ -76,6 +76,7 @@
         @media(max-width:520px){.nexa5 .tabs{grid-template-columns:repeat(2,1fr)}.nexa5 .score{grid-template-columns:1fr}}
       </style>
       <div class="nexa5">
+        <div class="small">Versi rotasi 5.2 — minimal 2 pemain berbeda</div>
         <div class="card2 top">
           <div class="line">
             <select id="nexaCourts" class="grow">
@@ -480,9 +481,9 @@
   function matchScore(teams, oldestIds, recentIds) {
     const flat = teams.flat();
     const overlap = flat.filter((row) => recentIds.includes(row.players.id)).length;
-    if (recentIds.length && overlap > 2) return -99998;
+    if (recentIds.length && overlap > 2) return -Infinity;
     const maxDiff = Math.max(...flat.map((row) => gradeValue(row.players.grade))) - Math.min(...flat.map((row) => gradeValue(row.players.grade)));
-    if (maxDiff > 1) return -99999;
+    if (maxDiff > 1) return -Infinity;
 
     const pairPenalty = teams.reduce((sum, team) => {
       return sum + Math.abs(gradeValue(team[0].players.grade) - gradeValue(team[1].players.grade)) * 8;
@@ -498,19 +499,23 @@
   }
 
   function pickBestMatch() {
+    const busyIds = new Set(state.matches.filter(m => m.status === 'playing').flatMap(getMatchPlayers));
     const waiting = state.attendances
-      .filter((row) => row.status === 'active')
+      .filter((row) => row.status === 'active' && !busyIds.has(row.players.id))
       .sort((a, b) => waitAt(a) - waitAt(b));
     if (waiting.length < 4) return null;
 
-    const pool = waiting.slice(0, 12);
-    const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
     const previous = [...state.matches].filter((m) => m.status === 'done' || m.status === 'playing').sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
     const recentIds = previous ? getMatchPlayers(previous) : [];
+    const completed = state.matches.filter(m => m.status === 'done').sort((a,b) => new Date(b.ended_at || b.created_at || 0) - new Date(a.ended_at || a.created_at || 0));
+    const lastCompletedIds = completed.length ? getMatchPlayers(completed[0]) : [];
+    const pool = waiting;
+    const oldestIds = waiting.slice(0, 4).map((row) => row.players.id);
     let best = null;
     let bestScore = -Infinity;
 
     combinations(pool, 4).forEach((four) => {
+      if (four.filter(row => lastCompletedIds.includes(row.players.id)).length > 2) return;
       teamOptions(four).forEach((teams) => {
         const score = matchScore(teams, oldestIds, recentIds);
         if (score > bestScore) {
@@ -520,15 +525,6 @@
       });
     });
 
-    // Bila tidak ada kombinasi dengan minimal 2 pemain baru, gunakan kombinasi terbaik yang tersedia.
-    if (!best && recentIds.length) {
-      let fallback = null; let fallbackScore = -Infinity;
-      combinations(pool, 4).forEach((four) => teamOptions(four).forEach((teams) => {
-        const score = matchScore(teams, oldestIds, []);
-        if (score > fallbackScore) { fallback = teams; fallbackScore = score; }
-      }));
-      return fallback;
-    }
     return best;
   }
 
@@ -541,7 +537,7 @@
 
     const teams = pickBestMatch();
     if (!teams) {
-      alert('Belum ada 4 pemain yang cocok untuk dibuatkan match.');
+      alert('Belum ada kombinasi grade yang cocok dengan minimal 2 pemain berbeda dari match terakhir dibuat dan terakhir selesai. Tunggu pemain lain atau gunakan match manual.');
       return;
     }
 
