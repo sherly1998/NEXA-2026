@@ -471,8 +471,9 @@
   function allowedGradePattern(teams) {
     const key = teams.flat().map((row) => row.players.grade).sort().join('|');
     return new Set([
-      'A|A|A|A', 'A|A|B+|B+', 'B+|B+|B+|B+',
-      'B|B|B+|B+', 'B|B|B|B', 'B|B|C|C', 'C|C|C|C'
+      'A|A|A|A', 'A|A|B+|B+', 'A|B+|B+|B+',
+      'B+|B+|B+|B+', 'B|B|B+|B+', 'B|B|B|B', 'B|B|B+|C',
+      'B|B|C|C', 'C|C|C|C'
     ]).has(key);
   }
 
@@ -505,7 +506,9 @@
     ) * 12;
     const waitBonus = flat.reduce((sum, row) => sum + Math.min(90, waitMinutes(row)), 0);
     const oldestBonus = flat.reduce((sum, row) => sum + (oldestIds.includes(row.players.id) ? 80 : 0), 0);
-    const sameGradeBonus = maxDiff === 0 ? 80 : 0;
+    // Grade sama selalu menang atas kombinasi gendong. Kombinasi campuran
+    // hanya masuk pencarian setelah tidak ada pola grade sama yang tersedia.
+    const sameGradeBonus = maxDiff === 0 ? 1200 : (strictPattern ? 250 : 0);
     return waitBonus + oldestBonus + sameGradeBonus + requestScore(teams) - pairPenalty - balancePenalty;
   }
 
