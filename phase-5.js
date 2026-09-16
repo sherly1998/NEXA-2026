@@ -309,18 +309,48 @@
 
   function renderHistory() {
     const rows = state.matches.filter((match) => match.status === 'done');
+    const totalBalls = rows.reduce((sum, match) => sum + (Number(match.balls) || 0), 0);
+    const attendanceCount = state.attendances.length;
     $('#nexaContent').innerHTML = `
       <div class="card2">
-        <b>Riwayat match sesi ini</b>
+        <div class="line"><b class="grow">Laporan sesi ini</b><button class="ghost" id="exportSession">Export CSV</button></div>
+        <div class="small" style="margin-top:8px">${attendanceCount} pemain hadir · ${rows.length} match selesai · ${totalBalls} bola tercatat</div>
         ${rows.length ? rows.map((match, index) => `
           <div class="match">
             <b>Match ${index + 1}</b>
             <div>${match.teams[0].map((p) => esc(p.name)).join(' + ')} vs ${match.teams[1].map((p) => esc(p.name)).join(' + ')}</div>
             <div class="small">Skor ${match.score_a} - ${match.score_b} · ${match.balls || 0} bola per pemain</div>
+            <div class="line" style="margin-top:6px"><button class="ghost" data-edit-done="${match.id}">Edit hasil</button><button class="danger" data-cancel-done="${match.id}">Batalkan hasil</button></div>
           </div>
         `).join('') : '<p class="small">Belum ada match selesai.</p>'}
       </div>
     `;
+    $('#exportSession').addEventListener('click', exportSession);
+    document.querySelectorAll('[data-edit-done]').forEach((b) => b.addEventListener('click', () => editDoneMatch(b.dataset.editDone)));
+    document.querySelectorAll('[data-cancel-done]').forEach((b) => b.addEventListener('click', () => cancelDoneMatch(b.dataset.cancelDone)));
+  }
+
+  function exportSession() {
+    const lines = [['Match','Tim 1','Tim 2','Skor Tim 1','Skor Tim 2','Bola per pemain']];
+    state.matches.filter((m) => m.status === 'done').forEach((m, i) => lines.push([i + 1, m.teams[0].map(p => p.name).join(' + '), m.teams[1].map(p => p.name).join(' + '), m.score_a, m.score_b, m.balls || 0]));
+    const csv = lines.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pb-nexa-laporan-sesi.csv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  async function editDoneMatch(id) {
+    const m = state.matches.find(x => x.id === id); if (!m) return;
+    const scoreA = Number(prompt('Skor Tim 1:', m.score_a)); const scoreB = Number(prompt('Skor Tim 2:', m.score_b)); const balls = Number(prompt('Bola per pemain:', m.balls || 0));
+    if (!Number.isFinite(scoreA) || !Number.isFinite(scoreB) || scoreA === scoreB || !Number.isFinite(balls) || balls < 0) return alert('Data hasil tidak valid.');
+    const delta = balls - (Number(m.balls) || 0);
+    await Promise.all(getMatchPlayers(m).map(id => state.sb.from('players').select('balls').eq('id', id).single().then(({data}) => state.sb.from('players').update({ balls: (data?.balls || 0) + delta }).eq('id', id))));
+    await state.sb.from('matches').update({ score_a: scoreA, score_b: scoreB, balls }).eq('id', id); await refresh();
+  }
+
+  async function cancelDoneMatch(id) {
+    const m = state.matches.find(x => x.id === id); if (!m || !confirm('Batalkan hasil match ini? Match kembali menjadi aktif dan statistik bola dikurangi.')) return;
+    await Promise.all(getMatchPlayers(m).map(pid => state.sb.from('players').select('balls').eq('id', pid).single().then(({data}) => state.sb.from('players').update({ balls: Math.max(0, (data?.balls || 0) - (Number(m.balls) || 0)) }).eq('id', pid))));
+    await state.sb.from('matches').update({ status: 'playing', score_a: null, score_b: null, balls: null, ended_at: null }).eq('id', id); await Promise.all(getMatchPlayers(m).map(pid => { const a = attendanceByPlayer(pid); return a ? state.sb.from('attendance').update({ status: 'playing' }).eq('id', a.id) : null; })); await refresh();
   }
 
   function attachAttendanceActions() {
